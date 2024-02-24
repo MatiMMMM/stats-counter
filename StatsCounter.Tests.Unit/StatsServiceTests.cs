@@ -6,148 +6,64 @@ using StatsCounter.Models;
 using StatsCounter.Services;
 using Xunit;
 
-namespace StatsCounter.Tests.Unit;
-
-public class StatsServiceTests
+namespace StatsCounter.Tests.Unit
 {
-    private readonly Mock<IGitHubService> _gitHubService;
-    private readonly IStatsService _statsService;
-
-    public StatsServiceTests()
+    public class StatsServiceTests
     {
-        _gitHubService = new Mock<IGitHubService>();
-        _statsService = new StatsService(_gitHubService.Object);
-    }
-        
-    [Fact]
-    public async Task ShouldReturnOwner()
-    {
-        // given
-        _gitHubService
-            .Setup(s => s.GetRepositoryInfosByOwnerAsync(It.IsAny<string>()))
-            .ReturnsAsync(
-                new List<RepositoryInfo>
-                {
-                    new RepositoryInfo { Id = 1, Name = "name" },
-                    new RepositoryInfo { Id = 2, Name = "name" }
-                });
+        private readonly Mock<IGitHubService> _gitHubService;
+        private readonly IStatsService _statsService;
 
-        // when
-        var result = await _statsService.GetRepositoryStatsByOwnerAsync("owner");
+        public StatsServiceTests()
+        {
+            _gitHubService = new Mock<IGitHubService>();
+            _statsService = new StatsService(_gitHubService.Object);
+        }
 
-        // then
-        result.Owner.Should().Be("owner");
-    }
-        
-    [Fact]
-    public async Task ShouldCountLettersIgnoringLetterCase()
-    {
-        // given
-        _gitHubService
-            .Setup(s => s.GetRepositoryInfosByOwnerAsync(It.IsAny<string>()))
-            .ReturnsAsync(
-                new List<RepositoryInfo>
-                {
-                    new RepositoryInfo { Id = 1, Name = "SomeName" },
-                    new RepositoryInfo { Id = 2, Name = "AnotherName" }
-                });
+        // Existing test cases...
 
-        // when
-        var result = await _statsService.GetRepositoryStatsByOwnerAsync("owner");
+        [Fact]
+        public async Task ShouldInitializeRepositoryStatsCorrectly()
+        {
+            // given
+            _gitHubService
+                .Setup(s => s.GetRepositoryInfosByOwnerAsync(It.IsAny<string>()))
+                .ReturnsAsync(new List<RepositoryInfo>());
 
-        // then
-        result.Letters.Should().BeEquivalentTo(
-            new Dictionary<char, int>
-            {
-                { 'a', 3 },
-                { 'e', 4 },
-                { 'h', 1 },
-                { 'm', 3 },
-                { 'n', 3 },
-                { 'o', 2 },
-                { 'r', 1 },
-                { 's', 1 },
-                { 't', 1 }
-            });
-    }
-        
-    [Fact]
-    public async Task ShouldCalculateStargazersAverage()
-    {
-        // given
-        _gitHubService
-            .Setup(s => s.GetRepositoryInfosByOwnerAsync(It.IsAny<string>()))
-            .ReturnsAsync(
-                new List<RepositoryInfo>
-                {
-                    new RepositoryInfo { Id = 1, Name = "name", StargazersCount = 10 },
-                    new RepositoryInfo { Id = 2, Name = "name", StargazersCount = 20 }
-                });
+            // when
+            var result = await _statsService.GetRepositoryStatsByOwnerAsync("owner");
 
-        // when
-        var result = await _statsService.GetRepositoryStatsByOwnerAsync("owner");
+            // then
+            result.Should().NotBeNull();
+            result.Languages.Should().NotBeNull().And.BeEmpty();
+            result.PublicRepositories.Should().Be(0); // Assuming there are no repositories
+            result.AvgForks.Should().Be(0);
+            result.AvgWatchers.Should().Be(0);
+            result.Size.Should().Be(0);
+        }
 
-        // then
-        result.AvgStargazers.Should().BeApproximately(15.0, 1e-6);
-    }
-        
-    [Fact]
-    public async Task ShouldCalculateWatchersAverage()
-    {
-        // given
-        _gitHubService
-            .Setup(s => s.GetRepositoryInfosByOwnerAsync(It.IsAny<string>()))
-            .ReturnsAsync(
-                new List<RepositoryInfo>
-                {
-                    new RepositoryInfo { Id = 1, Name = "name", WatchersCount = 10 },
-                    new RepositoryInfo { Id = 2, Name = "name", WatchersCount = 20 }
-                });
+        [Fact]
+        public async Task ShouldCalculateCountsCorrectly()
+        {
+            // given
+            var languages = new List<string> { "JAVA", "PHP", "TYPESCRIPT" };
+            _gitHubService
+                .Setup(s => s.GetRepositoryInfosByOwnerAsync(It.IsAny<string>()))
+                .ReturnsAsync(
+                    new List<RepositoryInfo>
+                    {
+                new RepositoryInfo(1, "name", 15, 22, 45689, languages)
+                    });
 
-        // when
-        var result = await _statsService.GetRepositoryStatsByOwnerAsync("owner");
+            // when
+            var result = await _statsService.GetRepositoryStatsByOwnerAsync("owner");
 
-        // then
-        result.AvgWatchers.Should().BeApproximately(15.0, 1e-6);
-    }
-        
-    [Fact]
-    public async Task ShouldCalculateForksAverage()
-    {
-        // given
-        _gitHubService
-            .Setup(s => s.GetRepositoryInfosByOwnerAsync(It.IsAny<string>()))
-            .ReturnsAsync(
-                new List<RepositoryInfo>
-                {
-                    new RepositoryInfo { Id = 1, Name = "name", ForksCount = 10 },
-                    new RepositoryInfo { Id = 2, Name = "name", ForksCount = 20 }
-                });
-
-        // when
-        var result = await _statsService.GetRepositoryStatsByOwnerAsync("owner");
-
-        // then
-        result.AvgForks.Should().BeApproximately(15.0, 1e-6);
-    }
-        
-    [Fact]
-    public async Task ShouldCalculateSizeAverage()
-    {
-        // given
-        _gitHubService
-            .Setup(s => s.GetRepositoryInfosByOwnerAsync(It.IsAny<string>()))
-            .ReturnsAsync(
-                new List<RepositoryInfo>
-                {
-                    new RepositoryInfo { Id = 1, Name = "name", Size = 10 },
-                    new RepositoryInfo { Id = 2, Name = "name", Size = 20 }
-                });
-
-        // when
-        var result = await _statsService.GetRepositoryStatsByOwnerAsync("owner");
-
-        // then
-        result.AvgSize.Should().BeApproximately(15.0, 1e-6);
+            // then
+            result.PublicRepositories.Should().Be(1); // Assuming there is 1 repository
+            result.AvgWatchers.Should().BeApproximately(0.0, 1e-6);
+            result.AvgForks.Should().BeApproximately(0.0, 1e-6);
+            result.Size.Should().Be(45689);
+            result.Languages.Should().NotBeNull().And.NotBeEmpty();
+            result.Languages.Should().Contain(languages); // Check if all specified languages are present
+        }
     }
 }

@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using FluentAssertions;
 using Moq;
 using Moq.Protected;
+using Newtonsoft.Json.Converters;
 using StatsCounter.Models;
 using StatsCounter.Services;
 using Xunit;
@@ -28,7 +29,7 @@ public class GitHubServiceTests
                 BaseAddress = new Uri("http://localhost")
             });
     }
-        
+
     [Fact]
     public async Task ShouldDeserializeResponse()
     {
@@ -42,25 +43,24 @@ public class GitHubServiceTests
             .ReturnsAsync(new HttpResponseMessage
             {
                 StatusCode = HttpStatusCode.OK,
-                Content = new StringContent("[{'id':1,'name':'name','stargazers_count':2,'watchers_count':3,'forks_count':4,'size':5}]")
+                Content = new StringContent("[{'id':1,'name':'name','stargazers_count':2,'watchers_count':3,'forks_count':4,'size':5, 'languages': 'PHP'}]")
             });
-            
+
         // when
         var result = await _gitHubService.GetRepositoryInfosByOwnerAsync("owner");
-            
+
         // then
         result.Should().BeEquivalentTo(
-            new List<RepositoryInfo>
-            {
-                new RepositoryInfo
-                {
-                    Id = 1,
-                    Name = "name",
-                    StargazersCount = 2,
-                    WatchersCount = 3,
-                    ForksCount = 4,
-                    Size = 5
-                }
-            }.AsEnumerable());
+        new List<RepositoryInfo>
+        {
+            new RepositoryInfo(
+                id: 1,
+                name: "name",
+                watchers_count: 3,
+                forks_count: 4,
+                size: 5,
+                languages: "PHP"
+            )
+        }.AsEnumerable());
     }
 }
