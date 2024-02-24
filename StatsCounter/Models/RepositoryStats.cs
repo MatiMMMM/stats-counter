@@ -1,12 +1,14 @@
 using System.Collections.Generic;
 
-namespace StatsCounter.Models;
-
-public class RepositoryStats
+namespace StatsCounter.Models
 {
-    public string Owner { get; set; }
-    public double AvgWatchers { get; set; }
-    public double AvgForks { get; set; }
-    public double AvgSize { get; set; }
-    public IDictionary<string, int> Languages { get; set; }
+    public class RepositoryStats
+    {
+        public string Owner { get; set; }
+        public List<string> Languages { get; set; }
+        public long Size { get; set; }
+        public int PublicRepositories { get; set; }
+        public double AvgWatchers { get; set; }
+        public double AvgForks { get; set; }
+    }
 }

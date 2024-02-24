@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
@@ -11,7 +10,7 @@ public interface IGitHubService
 {
     Task<IEnumerable<RepositoryInfo>> GetRepositoryInfosByOwnerAsync(string owner);
 }
-
+    
 public class GitHubService : IGitHubService
 {
     private readonly HttpClient _httpClient;

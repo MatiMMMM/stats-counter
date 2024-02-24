@@ -1,12 +1,11 @@
-using System.Net.Http;
 using System;
+using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using StatsCounter.Models;
 using StatsCounter.Services;
-using Newtonsoft.Json;
-using System.Collections.Generic;
 
 namespace StatsCounter.Controllers;
 
@@ -14,54 +13,34 @@ namespace StatsCounter.Controllers;
 [ApiController]
 public class RepositoriesController : ControllerBase
 {
+    //private readonly IStatsService _statsService;
+
     private static HttpClient sharedClient = new()
     {
-        BaseAddress = new Uri("https://api.github.com/")
-
+        BaseAddress = new Uri("https://api.github.com/"),
+        
     };
-
-    private readonly IStatsService _statsService;
-
-    public RepositoriesController(IStatsService statsService)
+  
+    public RepositoriesController()
     {
-        _statsService = statsService;
-    }
-
-    public IStatsService Get_statsService()
-    {
-        return _statsService;
+        //_statsService = statsService;
     }
 
     [HttpGet("{owner}")]
     [ProducesResponseType(typeof(RepositoryStats), StatusCodes.Status200OK)]
-    public async Task<ActionResult<RepositoryStats>> Get([FromRoute] string owner, IStatsService _statsService)
+    public async Task<ActionResult<RepositoryStats>> Get(
+        [FromRoute] string owner)
     {
-        try
-        {
-            sharedClient.DefaultRequestHeaders.Add("User-Agent", "C# App");
+        sharedClient.DefaultRequestHeaders.Add("User-Agent", "C# App");
 
-            var uri = "users/" + owner + "/repos";
+        var uri = "users/" + owner + "/repos";
 
-            var result = await sharedClient.GetAsync(uri);
+        var result = await sharedClient.GetAsync(uri);
 
-            if (!result.IsSuccessStatusCode)
-            {
-                // If the request was not successful, return appropriate error response
-                return StatusCode((int)result.StatusCode, $"Error: {result.ReasonPhrase}");
-            }
+        var contentStream = await result.Content.ReadAsStringAsync();
 
-            var repositoriesJson = await result.Content.ReadAsStringAsync();
-            var repositories = JsonConvert.DeserializeObject<List<RepositoryInfo>>(repositoriesJson);
 
-            // Now you have the repositories, you can calculate the statistics
-            var repositoryStats = await _statsService.CalculateStatsFromRepositoriesAsync(repositories);
-
-            return Ok(repositoryStats);
-        }
-        catch (Exception ex)
-        {
-            // Log the exception or handle it accordingly
-            return StatusCode(500, $"An error occurred while fetching repository stats: {ex.Message}");
-        }
+        //var result = await _statsService.GetRepositoryStatsByOwnerAsync(owner).ConfigureAwait(false);
+        return Ok(contentStream);
     }
 }

@@ -1,69 +1,86 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
+using StatsCounter.Data;
 using StatsCounter.Models;
 
 namespace StatsCounter.Services
 {
-    public interface IStatsService
-    {
-        Task<RepositoryStats> CalculateStatsFromRepositoriesAsync(List<RepositoryInfo> repositories);
-        Task<RepositoryStats> GetRepositoryStatsByOwnerAsync(string owner);
-    }
-
     public class StatsService : IStatsService
     {
-        public async Task<RepositoryStats> CalculateStatsFromRepositoriesAsync(List<RepositoryInfo> repositories)
+        private readonly IGitHubService _gitHubService;
+        private readonly StatsCounterDbContext _dbContext;
+
+        public StatsService(IGitHubService @object)
         {
-            if (repositories == null || repositories.Count == 0)
-            {
-                throw new ArgumentException("Repository list cannot be null or empty.");
-            }
+        }
+
+        public StatsService(IGitHubService gitHubService, StatsCounterDbContext dbContext)
+        {
+            _gitHubService = gitHubService;
+            _dbContext = dbContext;
+        }
+
+        public async Task<RepositoryStats> GetRepositoryStatsByOwnerAsync(string owner)
+        {
+            var repositories = await _gitHubService.GetRepositoryInfosByOwnerAsync(owner);
 
             var repositoryStats = new RepositoryStats();
-            repositoryStats.Owner = repositories[0].Owner; // Assuming all repositories have the same owner
+            repositoryStats.Languages = new List<string>();
+            long count = repositories.Count();
+            long watchers = 0;
+            long forks = 0;
+            long size = 0;
+            Dictionary<string, int> languageCounts = new Dictionary<string, int>();
 
-            // Calculate statistics
-            long totalSize = 0;
-            long totalWatchers = 0;
-            long totalForks = 0;
-
-            var languages = new Dictionary<string, int>();
-
-            foreach (var repo in repositories)
+            foreach (var repository in repositories)
             {
-                totalSize += repo.Size;
-                totalWatchers += repo.WatchersCount;
-                totalForks += repo.ForksCount;
+                watchers += repository.WatchersCount;
+                forks += repository.ForksCount;
+                size += repository.Size;
 
-                // Count languages
-                foreach (var language in repo.Languages)
+                // Count languages used
+                foreach (var language in repository.Languages)
                 {
-                    if (languages.ContainsKey(language))
-                    {
-                        languages[language]++;
-                    }
+                    if (languageCounts.ContainsKey(language))
+                        languageCounts[language]++;
                     else
-                    {
-                        languages[language] = 1;
-                    }
+                        languageCounts[language] = 1;
                 }
             }
 
-            repositoryStats.AvgSize = totalSize / (double)repositories.Count;
-            repositoryStats.AvgWatchers = totalWatchers / (double)repositories.Count;
-            repositoryStats.AvgForks = totalForks / (double)repositories.Count;
-            repositoryStats.Languages = languages;
+            repositoryStats.Owner = owner;
+            repositoryStats.PublicRepositories = repositories.Count();
+            repositoryStats.AvgForks = count > 0 ? forks / (double)count : 0.0;
+            repositoryStats.AvgWatchers = count > 0 ? watchers / (double)count : 0.0;
+            repositoryStats.Size = size;
 
-            // Simulate an asynchronous operation by returning a completed task
-            await Task.CompletedTask;
+            if (count > 0)
+            {
+                repositoryStats.Languages = languageCounts.Keys.ToList();
+            }
+
+            // Save to database
+            _dbContext.RepositoryStatsHistories.Add(new RepositoryStatsHistory
+            {
+                Owner = owner,
+                Languages = string.Join(", ", repositoryStats.Languages),
+                Size = repositoryStats.Size,
+                PublicRepositories = repositoryStats.PublicRepositories,
+                AvgWatchers = repositoryStats.AvgWatchers,
+                AvgForks = repositoryStats.AvgForks,
+                Timestamp = DateTime.UtcNow
+            });
+
+            await _dbContext.SaveChangesAsync(); // Save changes to the database
 
             return repositoryStats;
         }
+    }
 
-        public Task<RepositoryStats> GetRepositoryStatsByOwnerAsync(string owner)
-        {
-            throw new NotImplementedException();
-        }
+    public interface IStatsService
+    {
+        Task<RepositoryStats> GetRepositoryStatsByOwnerAsync(string owner);
     }
 }

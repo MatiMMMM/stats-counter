@@ -7,6 +7,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.OpenApi.Models;
 using StatsCounter.Extensions;
 using StatsCounter.Services;
+using StatsCounter.Data; // Import the namespace for DbContext
 
 namespace StatsCounter;
 
@@ -31,8 +32,16 @@ public class Startup
             });
         });
 
+        // Register DbContext
+        services.AddDbContext<StatsCounterDbContext>(options =>
+            options.UseSqlite(_configuration.GetConnectionString("DefaultConnection")));
+
+        // Register services
         services.AddGitHubService(new Uri(_configuration["GitHubSettings:BaseApiUrl"]))
             .AddTransient<IStatsService, StatsService>();
+
+        //    services.AddGitHubService(new Uri(_configuration["GitHubSettings:BaseApiUrl"]))
+        //       .AddTransient<IStatsService, StatsService>();
     }
 
     public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
